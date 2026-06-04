@@ -1,18 +1,4 @@
-gensrcs {
-    name: "qcom-audio-kernel-includes",
-    cmd: "$(location headers_install.sh) `dirname $(out)` `dirname $(in)` `basename $(in)`",
-    tools: ["headers_install.sh"],
-    export_include_dirs: ["include/uapi"],
-    srcs: [
-        "include/uapi/**/*.h",
-    ],
-    output_extension: "h",
-}
-
-cc_library_headers {
-    name: "qcom_audio_kernel_headers",
-    generated_headers: ["qcom-audio-kernel-includes"],
-    export_generated_headers: ["qcom-audio-kernel-includes"],
-    vendor: true,
-    recovery_available: true,
-}
+// Techpack audio Android.bp
+// DISABLED: qcom_audio_kernel_headers and qcom-audio-kernel-includes
+// are provided by hardware/qcom-caf/common in the EvoX/LineageOS
+// build system. Keeping these here causes duplicate module errors.
