@@ -13,7 +13,13 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 
-#include <uapi/linux/netfilter/xt_mark.h>
+struct xt_mark_tginfo2 {
+	__u32 mark, mask;
+};
+struct xt_mark_mtinfo1 {
+	__u32 mark, mask;
+	__u8 invert;
+};
 #include <linux/netfilter/x_tables.h>
 
 MODULE_LICENSE("GPL");
