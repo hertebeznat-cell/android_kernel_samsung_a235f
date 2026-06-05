@@ -5,9 +5,12 @@
 #include <linux/types.h>
 
 #ifndef __cplusplus
+#ifndef __defined_sched_param
+#define __defined_sched_param
 struct sched_param {
 	int sched_priority;
 };
+#endif
 #endif
 
 #define SCHED_ATTR_SIZE_VER0	48	/* sizeof first published struct */
