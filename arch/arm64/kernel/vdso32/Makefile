@@ -13,7 +13,7 @@ ifeq ($(CONFIG_CC_IS_CLANG), y)
 COMPAT_GCC_TOOLCHAIN_DIR := $(dir $(shell which $(CROSS_COMPILE_COMPAT)elfedit))
 COMPAT_GCC_TOOLCHAIN := $(realpath $(COMPAT_GCC_TOOLCHAIN_DIR)/..)
 
-CC_COMPAT_CLANG_FLAGS := --target=$(notdir $(CROSS_COMPILE_COMPAT:%-=%))
+CC_COMPAT_CLANG_FLAGS := --target=$(subst kernel,,$(notdir $(CROSS_COMPILE_COMPAT:%-=%)))
 CC_COMPAT_CLANG_FLAGS += --prefix=$(COMPAT_GCC_TOOLCHAIN_DIR)
 CC_COMPAT_CLANG_FLAGS += -no-integrated-as -Qunused-arguments
 ifneq ($(COMPAT_GCC_TOOLCHAIN),)
@@ -55,7 +55,7 @@ VDSO_CPPFLAGS += $(LINUXINCLUDE)
 # From top-level Makefile
 VDSO_CAFLAGS := $(VDSO_CPPFLAGS)
 ifneq ($(shell $(CC_COMPAT) --version 2>&1 | head -n 1 | grep clang),)
-VDSO_CAFLAGS += --target=$(notdir $(CROSS_COMPILE_COMPAT:%-=%))
+VDSO_CAFLAGS += --target=$(subst kernel,,$(notdir $(CROSS_COMPILE_COMPAT:%-=%)))
 endif
 
 VDSO_CAFLAGS += $(call cc32-option,-fno-PIE)
