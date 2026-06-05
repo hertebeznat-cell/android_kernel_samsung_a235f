@@ -71,7 +71,7 @@ endif
 
 # cc flags
 #ccflags-y              := -DDEBUG
-ccflags-y               += -Werror
+ccflags-y               +=  
 ifdef TFA_DEBUG
 ccflags-y               += -DTFA_DEBUG
 endif
