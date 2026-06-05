@@ -5,8 +5,8 @@
 #include <linux/types.h>
 
 #ifndef __cplusplus
-#ifndef __defined_sched_param
-#define __defined_sched_param
+#ifndef __DEFINED_sched_param
+#define __DEFINED_sched_param
 struct sched_param {
 	int sched_priority;
 };
