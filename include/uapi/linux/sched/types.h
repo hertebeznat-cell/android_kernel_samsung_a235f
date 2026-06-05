@@ -5,7 +5,7 @@
 #include <linux/types.h>
 
 #ifndef __cplusplus
-#ifndef __DEFINED_sched_param
+#if !defined(__BIONIC__) && !defined(__DEFINED_sched_param)
 #define __DEFINED_sched_param
 struct sched_param {
 	int sched_priority;
