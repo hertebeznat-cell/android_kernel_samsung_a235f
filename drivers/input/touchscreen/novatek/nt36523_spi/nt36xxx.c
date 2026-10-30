@@ -2781,6 +2781,16 @@ static int nvt_notifier_call(struct notifier_block *n, unsigned long data, void 
 				mutex_unlock(&ts->lock);
 				ts->lcd_esd_recovery = 0;
 			}
+			/*
+			 * One UI writes sec/tsp/enabled on display changes; AOSP
+			 * does not. The touch IC is part of the panel and loses
+			 * power with it, so follow the panel state here. Both
+			 * calls return early when already in that state.
+			 */
+			nvt_ts_early_resume(&ts->client->dev);
+			nvt_ts_resume(&ts->client->dev);
+		} else if (d->state == PANEL_OFF) {
+			nvt_ts_suspend(&ts->client->dev);
 		}
 	}
 
