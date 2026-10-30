@@ -20,7 +20,9 @@ subdir-y += nvidia
 subdir-y += realtek
 subdir-y += renesas
 subdir-y += rockchip
-subdir-y += samsung
+# Android builds use the stock SEZB1 DTB/DTBO (device/samsung/a23/prebuilt);
+# the samsung/a23 overlays are not needed and raced under parallel make.
+#subdir-y += samsung
 subdir-y += socionext
 subdir-y += sprd
 subdir-y += synaptics
