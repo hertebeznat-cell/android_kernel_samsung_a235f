@@ -119,6 +119,7 @@ int main(int argc, char **argv)
 		fclose(f);
 		exit(0);
 	} else if (!strncmp(cert_src, "pkcs11:", 7)) {
+#if OPENSSL_VERSION_NUMBER < 0x40000000L && !defined(OPENSSL_NO_ENGINE) && !defined(OPENSSL_NO_DEPRECATED_3_0)
 		ENGINE *e;
 		struct {
 			const char *cert_id;
@@ -141,6 +142,10 @@ int main(int argc, char **argv)
 		ENGINE_ctrl_cmd(e, "LOAD_CERT_CTRL", 0, &parms, NULL, 1);
 		ERR(!parms.cert, "Get X.509 from PKCS#11");
 		write_cert(parms.cert);
+#else
+		fprintf(stderr, "PKCS#11 requires OpenSSL ENGINE support; use a PEM certificate\n");
+		exit(1);
+#endif
 	} else {
 		BIO *b;
 		X509 *x509;

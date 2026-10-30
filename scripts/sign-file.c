@@ -144,6 +144,7 @@ static EVP_PKEY *read_private_key(const char *private_key_name)
 	EVP_PKEY *private_key;
 
 	if (!strncmp(private_key_name, "pkcs11:", 7)) {
+#if OPENSSL_VERSION_NUMBER < 0x40000000L && !defined(OPENSSL_NO_ENGINE) && !defined(OPENSSL_NO_DEPRECATED_3_0)
 		ENGINE *e;
 
 		ENGINE_load_builtin_engines();
@@ -160,6 +161,10 @@ static EVP_PKEY *read_private_key(const char *private_key_name)
 		private_key = ENGINE_load_private_key(e, private_key_name,
 						      NULL, NULL);
 		ERR(!private_key, "%s", private_key_name);
+#else
+		fprintf(stderr, "PKCS#11 requires OpenSSL ENGINE support; use a PEM key\n");
+		exit(1);
+#endif
 	} else {
 		BIO *b;
 
