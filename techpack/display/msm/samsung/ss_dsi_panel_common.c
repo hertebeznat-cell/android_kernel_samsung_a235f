@@ -7109,32 +7109,95 @@ __visible_for_testing void ss_lfd_event_work(struct work_struct *work)
 	return;
 }
 
+/*
+ * Panel power states waiting for ss_panel_state_event_work, per display.
+ * queue_work() does nothing while the work is still pending, and the work
+ * used to report vdd->panel_state as it was when the work ran. An OFF
+ * followed quickly by ON_READY/ON was then never reported: the TDDI touch
+ * driver, which suspends and resumes its IC from these events, kept the IC
+ * marked as on although it had lost power with the panel, and touch stayed
+ * dead after the screen came back. Report every transition, in order.
+ */
+#define SS_PANEL_STATE_QUEUE_LEN 16
+static DEFINE_SPINLOCK(ss_panel_state_queue_lock);
+static enum ss_panel_pwr_state ss_panel_state_queue[MAX_DISPLAY_NDX][SS_PANEL_STATE_QUEUE_LEN];
+static unsigned int ss_panel_state_queue_head[MAX_DISPLAY_NDX];
+static unsigned int ss_panel_state_queue_count[MAX_DISPLAY_NDX];
+
+static void ss_panel_state_queue_push(struct samsung_display_driver_data *vdd,
+		enum ss_panel_pwr_state state)
+{
+	unsigned long flags;
+	int ndx = vdd->ndx;
+
+	if (ndx < 0 || ndx >= MAX_DISPLAY_NDX)
+		return;
+
+	spin_lock_irqsave(&ss_panel_state_queue_lock, flags);
+	if (ss_panel_state_queue_count[ndx] == SS_PANEL_STATE_QUEUE_LEN) {
+		/* Full: drop the oldest state. */
+		ss_panel_state_queue_head[ndx] =
+			(ss_panel_state_queue_head[ndx] + 1) % SS_PANEL_STATE_QUEUE_LEN;
+		ss_panel_state_queue_count[ndx]--;
+	}
+	ss_panel_state_queue[ndx][(ss_panel_state_queue_head[ndx] +
+			ss_panel_state_queue_count[ndx]) % SS_PANEL_STATE_QUEUE_LEN] = state;
+	ss_panel_state_queue_count[ndx]++;
+	spin_unlock_irqrestore(&ss_panel_state_queue_lock, flags);
+}
+
+static bool ss_panel_state_queue_pop(struct samsung_display_driver_data *vdd,
+		enum ss_panel_pwr_state *state)
+{
+	unsigned long flags;
+	int ndx = vdd->ndx;
+	bool found = false;
+
+	if (ndx < 0 || ndx >= MAX_DISPLAY_NDX)
+		return false;
+
+	spin_lock_irqsave(&ss_panel_state_queue_lock, flags);
+	if (ss_panel_state_queue_count[ndx]) {
+		*state = ss_panel_state_queue[ndx][ss_panel_state_queue_head[ndx]];
+		ss_panel_state_queue_head[ndx] =
+			(ss_panel_state_queue_head[ndx] + 1) % SS_PANEL_STATE_QUEUE_LEN;
+		ss_panel_state_queue_count[ndx]--;
+		found = true;
+	}
+	spin_unlock_irqrestore(&ss_panel_state_queue_lock, flags);
+
+	return found;
+}
+
 __visible_for_testing void ss_panel_state_event_work(struct work_struct *work)
 {
 	struct samsung_display_driver_data *vdd = NULL;
 	struct panel_state_data state_data;
+	enum ss_panel_pwr_state pwr_state;
 
 	vdd = container_of(work, struct samsung_display_driver_data, panel_state_event_work);
 
-	switch(vdd->panel_state) {
-		case PANEL_PWR_ON:
-			state_data.state = PANEL_ON;
-			break;
-		case PANEL_PWR_OFF:
-			state_data.state = PANEL_OFF;
-			break;
-		case PANEL_PWR_LPM:
-			state_data.state = PANEL_LPM;
-			break;
-		default:
-			state_data.state = MAX_PANEL_STATE;
-			break;
-	}
+	while (ss_panel_state_queue_pop(vdd, &pwr_state)) {
+		switch (pwr_state) {
+			case PANEL_PWR_ON:
+				state_data.state = PANEL_ON;
+				break;
+			case PANEL_PWR_OFF:
+				state_data.state = PANEL_OFF;
+				break;
+			case PANEL_PWR_LPM:
+				state_data.state = PANEL_LPM;
+				break;
+			default:
+				state_data.state = MAX_PANEL_STATE;
+				break;
+		}
 
-	state_data.display_idx = vdd->ndx;
-	LCD_DEBUG(vdd, "%d ++\n", state_data.state);
-	ss_panel_notifier_call_chain(PANEL_EVENT_STATE_CHANGED, &state_data);
-	LCD_DEBUG(vdd, "--\n");
+		state_data.display_idx = vdd->ndx;
+		LCD_DEBUG(vdd, "%d ++\n", state_data.state);
+		ss_panel_notifier_call_chain(PANEL_EVENT_STATE_CHANGED, &state_data);
+		LCD_DEBUG(vdd, "--\n");
+	}
 
 	return;
 }
@@ -7817,6 +7880,7 @@ void ss_set_panel_state(struct samsung_display_driver_data *vdd, enum ss_panel_p
 	LCD_INFO(vdd, "set panel state %d\n", vdd->panel_state);
 
 #if IS_ENABLED(CONFIG_SEC_PANEL_NOTIFIER)
+	ss_panel_state_queue_push(vdd, panel_state);
 	ss_notify_queue_work(vdd, PANEL_EVENT_STATE_CHANGED);
 #endif
 }
