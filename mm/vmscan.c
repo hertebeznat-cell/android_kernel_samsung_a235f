@@ -4174,12 +4174,23 @@ void lru_gen_look_around(struct page_vma_mapped_walk *pvmw)
 	unsigned long bitmap[BITS_TO_LONGS(MIN_LRU_BATCH)] = {};
 	struct mem_cgroup *memcg = page_memcg(pvmw->page);
 	struct pglist_data *pgdat = page_pgdat(pvmw->page);
-	struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, memcg);
+	/*
+	 * Swapcache readahead pages are added to the LRU before they are
+	 * charged, so page_memcg() can be NULL here; mem_cgroup_lruvec() would
+	 * dereference it (oops at 0x950 under memory pressure, from
+	 * do_swap_page() -> direct reclaim -> page_referenced_one()).
+	 * mem_cgroup_page_lruvec() falls back to the root memcg.
+	 */
+	struct lruvec *lruvec = mem_cgroup_page_lruvec(pvmw->page, pgdat);
 	DEFINE_MAX_SEQ(lruvec);
 	int old_gen, new_gen = lru_gen_from_seq(max_seq);
 
 	lockdep_assert_held(pvmw->ptl);
 	VM_BUG_ON_PAGE(PageLRU(pvmw->page), pvmw->page);
+
+	/* As lru_gen_eviction(): leave uncharged pages alone. */
+	if (!mem_cgroup_disabled() && !memcg)
+		return;
 
 	if (spin_is_contended(pvmw->ptl))
 		return;
